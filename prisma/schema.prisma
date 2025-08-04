@@ -1,0 +1,81 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Parents {
+  id                 Int       @id @default(autoincrement())
+  full_name          String    @db.VarChar(50)
+  email              String    @unique @db.VarChar(50)
+  hashedPassword     String
+  phone_number       String    @db.VarChar(50)
+  hashedRefreshToken String?
+  is_active          Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  Students           Students? @relation(fields: [studentsId], references: [id])
+  studentsId         Int?
+}
+
+model Students {
+  id                 Int                  @id @default(autoincrement())
+  full_name          String               @db.VarChar(50)
+  login              String               @unique @db.VarChar(50)
+  parol              String               @db.VarChar(50)
+  birthday           String               @db.VarChar(50)
+  birth_certificate  String?
+  image              Boolean              @default(false)
+  gender             Gender
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  parents            Parents[]
+  studentAttenddance StudentAttenddance[]
+
+  @@map("students")
+}
+model Teachers {
+  id                 Int                  @id @default(autoincrement())
+  full_name          String               @db.VarChar(50)
+  email              String    @unique @db.VarChar(50)
+  hashedPassword     String
+  phone_number       String    @db.VarChar(50)
+  hashedRefreshToken String?
+  is_active          Boolean   @default(false)
+  deplom String
+  gender Gender
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@map("teachers")
+}
+
+enum Gender {
+  ayol
+  erkak
+}
+
+model StudentAttenddance {
+  id         Int          @id @default(autoincrement())
+  studentsId Int?
+  reason     String?
+  status     AttendStatus
+  date_time  DateTime     @default(now())
+  Students   Students?    @relation(fields: [studentsId], references: [id])
+}
+
+enum AttendStatus {
+  KELGAN
+  SABABSIZ_KELMAGAN
+  SABABLI_KELMAGAN
+}
