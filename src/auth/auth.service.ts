@@ -6,6 +6,7 @@ import {
   ServiceUnavailableException,
   NotFoundException,
   BadRequestException,
+  UseGuards,
 } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
 import { Response } from "express";
@@ -71,11 +72,12 @@ export class AuthService {
     return { message: `Siz accountingizni activate qildingiz` };
   }
 
-  async generateTokens(user: any) {
+  async generateTokens(user: any, role:string) {
     const payload = {
       id: user.id,
       email: user.email,
       is_creator: user.is_creator,
+      role
     };
 
     const [accessToken, refreshToken] = await Promise.all([
@@ -94,11 +96,11 @@ export class AuthService {
     };
   }
 
-  async generateTokensWithoutEmail(user: any) {
+  async generateTokensWithoutEmail(user: any, role:string) {
     const payload = {
       id: user.id,
       ID: user.ID,
-      phone_number: user.phone_number,
+      role :role
     };
 
     const [accessToken, refreshToken] = await Promise.all([
@@ -156,7 +158,6 @@ export class AuthService {
       phone_number,
       password,
       confirm_password,
-      studentsId,
     } = createParentDto;
 
     if (password !== confirm_password) {
@@ -178,7 +179,6 @@ export class AuthService {
         email,
         phone_number,
         hashedPassword: hashed,
-        studentsId,
       },
     });
     try {
@@ -215,7 +215,7 @@ export class AuthService {
       throw new UnauthorizedException("Email yoki password noto'g'ri.");
     }
 
-    const { accessToken, refreshToken } = await this.generateTokens(parent);
+    const { accessToken, refreshToken } = await this.generateTokens(parent, "user");
 
     await this.prisma.parents.update({
       where: { id: parent.id },
@@ -233,8 +233,9 @@ export class AuthService {
   }
 
   async loginAdmin(loginAdmindto: LoginAdminDto, res: Response) {
+    const { email, password } = loginAdmindto;
     const admin = await this.prisma.admins.findUnique({
-      where: { email: loginAdmindto.email },
+      where: { email },
     });
 
     if (!admin) {
@@ -247,7 +248,7 @@ export class AuthService {
     }
 
     const isMatched = await bcrypt.compare(
-      loginAdmindto.password,
+      password,
       admin.hashedPassword
     );
 
@@ -255,7 +256,7 @@ export class AuthService {
       throw new UnauthorizedException("Email yoki password noto'g'ri.");
     }
 
-    const { accessToken, refreshToken } = await this.generateTokens(admin);
+    const { accessToken, refreshToken } = await this.generateTokens(admin, "admin");
 
     await this.prisma.admins.update({
       where: { id: admin.id },
@@ -270,6 +271,194 @@ export class AuthService {
     });
 
     return { message: "Tizimga xush kelibsiz", id: admin.id, accessToken };
+  }
+
+  async loginDerictor(loginDerictorDto: LoginDirectorDto, res: Response) {
+    const { ID, password } = loginDerictorDto;
+    const derictor = await this.prisma.directors.findUnique({
+      where: { ID },
+    });
+
+    if (!derictor) {
+      throw new UnauthorizedException("Login yoki parol noto'g'ri");
+    }
+
+    const isMatched = await bcrypt.compare(password, derictor.hashedPassword);
+
+    if (!isMatched) {
+      throw new UnauthorizedException("Login yoki parol noto'g'ri");
+    }
+
+    const { accessToken, refreshToken } =
+      await this.generateTokensWithoutEmail(derictor, "user");
+
+    await this.prisma.directors.update({
+      where: { id: derictor.id },
+      data: {
+        hashedRefreshToken: await bcrypt.hash(refreshToken, 7),
+      },
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      maxAge: +process.env.COOKIE_TIME!,
+      httpOnly: true,
+    });
+
+    return { message: "Tizimga xush kelibsiz", id: derictor.id, accessToken };
+  }
+
+  async loginTeacher(loginTeacherDto: LoginTeacherDto, res: Response) {
+    const teacher = await this.prisma.teachers.findUnique({
+      where: { ID: loginTeacherDto.ID },
+    });
+
+    if (!teacher) {
+      throw new UnauthorizedException("Login yoki parol noto'g'ri");
+    }
+
+    const isMatched = await bcrypt.compare(
+      loginTeacherDto.password,
+      teacher.hashedPassword
+    );
+
+    if (!isMatched) {
+      throw new UnauthorizedException("Login yoki parol noto'g'ri");
+    }
+
+    const { accessToken, refreshToken } =
+      await this.generateTokensWithoutEmail(teacher, "user");
+
+    await this.prisma.teachers.update({
+      where: { id: teacher.id },
+      data: {
+        hashedRefreshToken: await bcrypt.hash(refreshToken, 7),
+      },
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      maxAge: +process.env.COOKIE_TIME!,
+      httpOnly: true,
+    });
+
+    return { message: "Tizimga xush kelibsiz", id: teacher.id, accessToken };
+  }
+
+  async loginStudent(loginStudentDto: LoginStudentDto, res: Response) {
+    const student = await this.prisma.students.findUnique({
+      where: { ID: loginStudentDto.ID },
+    });
+
+    if (!student) {
+      throw new UnauthorizedException("Login yoki parol noto'g'ri");
+    }
+
+    const isMatched = await bcrypt.compare(
+      loginStudentDto.password,
+      student.hashedPassword
+    );
+
+    if (!isMatched) {
+      throw new UnauthorizedException("Login yoki parol noto'g'ri");
+    }
+
+    const { accessToken, refreshToken } =
+      await this.generateTokensWithoutEmail(student, "user");
+
+    await this.prisma.students.update({
+      where: { id: student.id },
+      data: {
+        hashedRefreshToken: await bcrypt.hash(refreshToken, 7),
+      },
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      maxAge: +process.env.COOKIE_TIME!,
+      httpOnly: true,
+    });
+
+    return { message: "Tizimga xush kelibsiz", id: student.id, accessToken };
+  }
+
+  async refreshTokenDirector(readonlyFromCookie: string, res: Response) {
+    const decodedToken = await this.jwtService.decode(readonlyFromCookie);
+    if (!decodedToken) {
+      throw new NotFoundException("Director not  found");
+    }
+
+    const derictor = await this.prisma.directors.findUnique({
+      where: { id: decodedToken["id"] },
+    });
+    if (!derictor || !derictor.hashedRefreshToken) {
+      throw new NotFoundException("Director not  found");
+    }
+    const toMatch = await bcrypt.compare(
+      readonlyFromCookie,
+      derictor.hashedRefreshToken
+    );
+    if (!toMatch) {
+      throw new ForbiddenException("Forbidden");
+    }
+    const { accessToken, refreshToken } = await this.generateTokensWithoutEmail(derictor, "user");
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 7);
+    await this.prisma.directors.update({
+      where: { id: derictor.id },
+      data: {
+        hashedRefreshToken,
+      },
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      maxAge: Number(process.env.COOKIE_TIME),
+      httpOnly: true,
+    });
+
+    const response = {
+      message: "Director refreshed",
+      studentId: derictor.id,
+      accessToken: accessToken,
+    };
+    return response;
+  }
+
+  async refreshTokenStudent(readonlyFromCookie: string, res: Response) {
+    const decodedToken = await this.jwtService.decode(readonlyFromCookie);
+    if (!decodedToken) {
+      throw new NotFoundException("Student not  found");
+    }
+
+    const student = await this.prisma.students.findUnique({
+      where: { id: decodedToken["id"] },
+    });
+    if (!student || !student.hashedRefreshToken) {
+      throw new NotFoundException("Student not  found");
+    }
+    const toMatch = await bcrypt.compare(
+      readonlyFromCookie,
+      student.hashedRefreshToken
+    );
+    if (!toMatch) {
+      throw new ForbiddenException("Forbidden");
+    }
+    const { accessToken, refreshToken } = await this.generateTokens(student, "user");
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 7);
+    await this.prisma.students.update({
+      where: { id: student.id },
+      data: {
+        hashedRefreshToken,
+      },
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      maxAge: Number(process.env.COOKIE_TIME),
+      httpOnly: true,
+    });
+
+    const response = {
+      message: "Student refreshed",
+      studentId: student.id,
+      accessToken: accessToken,
+    };
+    return response;
   }
 
   async refreshTokenParent(readonlyFromCookie: string, res: Response) {
@@ -291,7 +480,7 @@ export class AuthService {
     if (!toMatch) {
       throw new ForbiddenException("Forbidden");
     }
-    const { accessToken, refreshToken } = await this.generateTokens(parent);
+    const { accessToken, refreshToken } = await this.generateTokens(parent, "user");
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 7);
     await this.prisma.parents.update({
       where: { id: parent.id },
@@ -332,7 +521,7 @@ export class AuthService {
     if (!toMatch) {
       throw new ForbiddenException("Forbidden");
     }
-    const { accessToken, refreshToken } = await this.generateTokens(admin);
+    const { accessToken, refreshToken } = await this.generateTokens(admin, "admin");
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 7);
     await this.prisma.admins.update({
       where: { id: admin.id },
@@ -349,6 +538,47 @@ export class AuthService {
     const response = {
       message: "Admin refreshed",
       adminId: admin.id,
+      accessToken: accessToken,
+    };
+    return response;
+  }
+
+  async refreshTokenTeacher(readonlyFromCookie: string, res: Response) {
+    const decodedToken = await this.jwtService.decode(readonlyFromCookie);
+    if (!decodedToken) {
+      throw new NotFoundException("Teacher not  found");
+    }
+
+    const teacher = await this.prisma.teachers.findUnique({
+      where: { id: decodedToken["id"] },
+    });
+    if (!teacher || !teacher.hashedRefreshToken) {
+      throw new NotFoundException("Admin not  found");
+    }
+    const toMatch = await bcrypt.compare(
+      readonlyFromCookie,
+      teacher.hashedRefreshToken
+    );
+    if (!toMatch) {
+      throw new ForbiddenException("Forbidden");
+    }
+    const { accessToken, refreshToken } = await this.generateTokens(teacher, "user");
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 7);
+    await this.prisma.teachers.update({
+      where: { id: teacher.id },
+      data: {
+        hashedRefreshToken,
+      },
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      maxAge: Number(process.env.COOKIE_TIME),
+      httpOnly: true,
+    });
+
+    const response = {
+      message: "Teacher refreshed",
+      teacherId: teacher.id,
       accessToken: accessToken,
     };
     return response;
@@ -402,116 +632,6 @@ export class AuthService {
     return { message: "Logged out successfully" };
   }
 
-  async loginDerictor(loginDerictorDto: LoginDirectorDto, res: Response) {
-    const { ID, password } = loginDerictorDto;
-    const derictor = await this.prisma.teachers.findUnique({
-      where: { ID },
-    });
-
-    if (!derictor) {
-      throw new UnauthorizedException("Login yoki parol noto'g'ri");
-    }
-
-    const isMatched = await bcrypt.compare(password, derictor.hashedPassword);
-
-    if (!isMatched) {
-      throw new UnauthorizedException("Login yoki parol noto'g'ri");
-    }
-
-    const { accessToken, refreshToken } =
-      await this.generateTokensWithoutEmail(derictor);
-
-    await this.prisma.directors.update({
-      where: { id: derictor.id },
-      data: {
-        hashedRefreshToken: await bcrypt.hash(refreshToken, 7),
-      },
-    });
-
-    res.cookie("refreshToken", refreshToken, {
-      maxAge: +process.env.COOKIE_TIME!,
-      httpOnly: true,
-    });
-
-    return { message: "Tizimga xush kelibsiz", id: derictor.id, accessToken };
-  }
-  async loginTeacher(loginTeacherDto: LoginTeacherDto, res: Response) {
-    const teacher = await this.prisma.teachers.findUnique({
-      where: { ID: loginTeacherDto.ID },
-    });
-
-    if (!teacher) {
-      throw new UnauthorizedException("Login yoki parol noto'g'ri");
-    }
-
-    const isMatched = await bcrypt.compare(
-      loginTeacherDto.password,
-      teacher.hashedPassword
-    );
-
-    if (!isMatched) {
-      throw new UnauthorizedException("Login yoki parol noto'g'ri");
-    }
-
-    const { accessToken, refreshToken } =
-      await this.generateTokensWithoutEmail(teacher);
-
-    await this.prisma.teachers.update({
-      where: { id: teacher.id },
-      data: {
-        hashedRefreshToken: await bcrypt.hash(refreshToken, 7),
-      },
-    });
-
-    res.cookie("refreshToken", refreshToken, {
-      maxAge: +process.env.COOKIE_TIME!,
-      httpOnly: true,
-    });
-
-    return { message: "Tizimga xush kelibsiz", id: teacher.id, accessToken };
-  }
-
-  async refreshTokenTeacher(readonlyFromCookie: string, res: Response) {
-    const decodedToken = await this.jwtService.decode(readonlyFromCookie);
-    if (!decodedToken) {
-      throw new NotFoundException("Teacher not  found");
-    }
-
-    const teacher = await this.prisma.teachers.findUnique({
-      where: { id: decodedToken["id"] },
-    });
-    if (!teacher || !teacher.hashedRefreshToken) {
-      throw new NotFoundException("Admin not  found");
-    }
-    const toMatch = await bcrypt.compare(
-      readonlyFromCookie,
-      teacher.hashedRefreshToken
-    );
-    if (!toMatch) {
-      throw new ForbiddenException("Forbidden");
-    }
-    const { accessToken, refreshToken } = await this.generateTokens(teacher);
-    const hashedRefreshToken = await bcrypt.hash(refreshToken, 7);
-    await this.prisma.teachers.update({
-      where: { id: teacher.id },
-      data: {
-        hashedRefreshToken,
-      },
-    });
-
-    res.cookie("refreshToken", refreshToken, {
-      maxAge: Number(process.env.COOKIE_TIME),
-      httpOnly: true,
-    });
-
-    const response = {
-      message: "Teacher refreshed",
-      teacherId: teacher.id,
-      accessToken: accessToken,
-    };
-    return response;
-  }
-
   async logoutTeacher(refreshToken: string, res: Response) {
     let teacherData: any;
     try {
@@ -536,81 +656,28 @@ export class AuthService {
     return { message: "Logged out successfully" };
   }
 
-  async loginStudent(loginStudentDto: LoginStudentDto, res: Response) {
-    const student = await this.prisma.students.findUnique({
-      where: { ID: loginStudentDto.ID },
-    });
-
-    if (!student) {
-      throw new UnauthorizedException("Login yoki parol noto'g'ri");
+  async logoutDirector(refreshToken: string, res: Response) {
+    let directorData: any;
+    try {
+      directorData = await this.jwtService.verify(refreshToken, {
+        secret: process.env.REFRESH_TOKEN_KEY,
+      });
+    } catch (error) {
+      console.log(error);
+      throw new BadRequestException(error);
     }
-
-    const isMatched = await bcrypt.compare(
-      loginStudentDto.password,
-      student.hashedPassword
-    );
-
-    if (!isMatched) {
-      throw new UnauthorizedException("Login yoki parol noto'g'ri");
+    if (!directorData) {
+      throw new ForbiddenException("User not verified");
     }
-
-    const { accessToken, refreshToken } =
-      await this.generateTokensWithoutEmail(student);
-
-    await this.prisma.students.update({
-      where: { id: student.id },
+    await this.prisma.directors.update({
+      where: { id: directorData["id"] },
       data: {
-        hashedRefreshToken: await bcrypt.hash(refreshToken, 7),
+        hashedRefreshToken: "",
       },
     });
 
-    res.cookie("refreshToken", refreshToken, {
-      maxAge: +process.env.COOKIE_TIME!,
-      httpOnly: true,
-    });
-
-    return { message: "Tizimga xush kelibsiz", id: student.id, accessToken };
-  }
-
-  async refreshTokenStudent(readonlyFromCookie: string, res: Response) {
-    const decodedToken = await this.jwtService.decode(readonlyFromCookie);
-    if (!decodedToken) {
-      throw new NotFoundException("Student not  found");
-    }
-
-    const student = await this.prisma.students.findUnique({
-      where: { id: decodedToken["id"] },
-    });
-    if (!student || !student.hashedRefreshToken) {
-      throw new NotFoundException("Student not  found");
-    }
-    const toMatch = await bcrypt.compare(
-      readonlyFromCookie,
-      student.hashedRefreshToken
-    );
-    if (!toMatch) {
-      throw new ForbiddenException("Forbidden");
-    }
-    const { accessToken, refreshToken } = await this.generateTokens(student);
-    const hashedRefreshToken = await bcrypt.hash(refreshToken, 7);
-    await this.prisma.students.update({
-      where: { id: student.id },
-      data: {
-        hashedRefreshToken,
-      },
-    });
-
-    res.cookie("refreshToken", refreshToken, {
-      maxAge: Number(process.env.COOKIE_TIME),
-      httpOnly: true,
-    });
-
-    const response = {
-      message: "Student refreshed",
-      studentId: student.id,
-      accessToken: accessToken,
-    };
-    return response;
+    res.clearCookie("refreshToken");
+    return { message: "Logged out successfully" };
   }
 
   async logoutStudent(refreshToken: string, res: Response) {

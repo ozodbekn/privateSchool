@@ -9,7 +9,7 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { MailModule } from "../mail/mail.module";
 
 @Module({
-  imports: [ConfigModule, JwtModule, PrismaModule, MailModule],
+  imports: [ConfigModule, JwtModule, PrismaModule, MailModule, ConfigModule],
   providers: [AuthService, JwtService],
   controllers: [AuthController],
   exports: [AuthService],

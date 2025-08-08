@@ -14,22 +14,21 @@ datasource db {
 }
 
 model Parents {
-  id                 Int       @id @default(autoincrement())
-  full_name          String    @db.VarChar(50)
-  email              String    @unique @db.VarChar(50)
+  id                 Int        @id @unique @default(autoincrement())
+  full_name          String     @db.VarChar(50)
+  email              String     @unique @db.VarChar(50)
   hashedPassword     String
-  phone_number       String    @unique @db.VarChar(50)
+  phone_number       String     @unique @db.VarChar(50)
   hashedRefreshToken String?
-  activationLink     String?  @default(uuid())
-  is_active          Boolean   @default(false)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  students           Students? @relation(fields: [studentsId], references: [id])
-  studentsId         Int?
+  activationLink     String?    @default(uuid())
+  is_active          Boolean    @default(false)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  students           Students[]
 }
 
 model Admins {
-  id                 Int      @id @default(autoincrement())
+  id                 Int      @id @unique @default(autoincrement())
   full_name          String   @db.VarChar(50)
   email              String   @unique @db.VarChar(50)
   hashedPassword     String
@@ -42,10 +41,15 @@ model Admins {
   updatedAt          DateTime @updatedAt
 }
 
+model IdList {
+  id Int    @id @unique @default(autoincrement())
+  ID String @unique
+}
+
 model Directors {
-  id                 Int      @id @default(autoincrement())
+  id                 Int      @id @unique @default(autoincrement())
   full_name          String   @db.VarChar(50)
-  ID              String   @unique @db.VarChar(50)
+  ID                 String   @unique @db.VarChar(50)
   hashedPassword     String
   phone_number       String   @unique @db.VarChar(50)
   image              String   @db.VarChar(50)
@@ -53,39 +57,55 @@ model Directors {
   is_main            Boolean  @default(false)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+  School             School?  @relation(fields: [schoolId], references: [id])
+  schoolId           Int?
 }
 
+enum StudentStatus {
+  active
+  inactive
+}
 model Students {
-  id                 Int                  @id @default(autoincrement())
-  full_name          String               @db.VarChar(50)
-  ID              String               @unique @db.VarChar(50)
-  hashedPassword              String        
-  birthyear          String               @db.VarChar(50)
-  hashedRefreshToken String?
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  parents            Parents[]
-  studentAttenddance StudentAttenddance[]
+  id                  Int                   @id @unique @default(autoincrement())
+  full_name           String                @db.VarChar(50)
+  ID                  String                @unique @db.VarChar(50)
+  hashedPassword      String
+  birthyear           String                @db.VarChar(50)
+  hashedRefreshToken  String?
+  status              StudentStatus @default(inactive)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  studentAttenddance  StudentAttenddance[]
+  contract            Contract[]
+  lesson              Lesson[]
+  HomeworkSumbmission HomeworkSumbmission[]
+  Classes             Classes?              @relation(fields: [classesId], references: [id])
+  classesId           Int?
+  Parents             Parents?              @relation(fields: [parentsId], references: [id])
+  parentsId           Int?
 
   @@map("students")
 }
 
 model Teachers {
-  id                 Int      @id @default(autoincrement())
-  full_name          String   @db.VarChar(50)
-  ID                 String   @unique @db.VarChar(50)
+  id                 Int                 @id @unique @default(autoincrement())
+  full_name          String              @db.VarChar(50)
+  ID                 String              @unique @db.VarChar(50)
   hashedPassword     String
-  phone_number       String   @db.VarChar(50)
+  phone_number       String              @db.VarChar(50)
   hashedRefreshToken String?
   diplom             String
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  class              Classes[]
+  teacherAttenddance teacherAttendance[]
+  subject            Subject[]
 
   @@map("teachers")
 }
 
 model StudentAttenddance {
-  id         Int          @id @default(autoincrement())
+  id         Int          @id @unique @default(autoincrement())
   studentsId Int?
   reason     String?
   status     AttendStatus
@@ -97,4 +117,148 @@ enum AttendStatus {
   KELGAN
   SABABSIZ_KELMAGAN
   SABABLI_KELMAGAN
+}
+
+model School {
+  id           Int         @id @unique @default(autoincrement())
+  name         String      @db.VarChar(50)
+  phone_number String      @db.VarChar(50)
+  description  String      @db.VarChar(50)
+  address      String      @db.VarChar(50)
+  email        String      @db.VarChar(50)
+  website      String      @db.VarChar(50)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  directors    Directors[]
+  class        Classes[]
+
+  @@map("school")
+}
+
+model Rooms {
+  id        Int      @id @unique @default(autoincrement())
+  name      String   @db.VarChar(50)
+  type      String   @db.VarChar(50)
+  capacity  Int
+  image     String   @db.VarChar(50)
+  floor     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lesson    Lesson[]
+}
+
+model teacherAttendance {
+  id         Int          @id @unique @default(autoincrement())
+  status     AttendStatus
+  date_time  DateTime     @default(now())
+  Teachers   Teachers?    @relation(fields: [teachersId], references: [id])
+  teachersId Int?
+}
+
+model Lesson {
+  id         Int    @id @unique @default(autoincrement())
+  start_time String
+  end_time   String
+  dayofweek  Int
+
+  Students   Students? @relation(fields: [studentsId], references: [id])
+  studentsId Int?
+  Rooms      Rooms?    @relation(fields: [roomsId], references: [id])
+  roomsId    Int?
+  Subject    Subject?  @relation(fields: [subjectId], references: [id])
+  subjectId  Int?
+
+  @@map("lesson")
+}
+
+model Subject {
+  id          Int        @id @unique @default(autoincrement())
+  name        String     @db.VarChar(50)
+  description String     @db.VarChar(100)
+  lesson      Lesson[]
+  homework    Homework[]
+  Teachers    Teachers?  @relation(fields: [teachersId], references: [id])
+  teachersId  Int?
+  Classes     Classes?   @relation(fields: [classesId], references: [id])
+  classesId   Int?
+
+  @@map("subject")
+}
+
+model Homework {
+  id          Int                   @id @unique @default(autoincrement())
+  title       String
+  description String
+  due_date    String
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  homework    HomeworkSumbmission[]
+  Subject     Subject?              @relation(fields: [subjectId], references: [id])
+  subjectId   Int?
+}
+
+model HomeworkSumbmission {
+  id          Int       @id @unique @default(autoincrement())
+  file_url    String
+  sumbit_date DateTime  @default(now())
+  comment     String?
+  Students    Students? @relation(fields: [studentsId], references: [id])
+  studentsId  Int?
+  Homework    Homework? @relation(fields: [homeworkId], references: [id])
+  homeworkId  Int?
+}
+
+model Classes {
+  id         Int        @id @unique @default(autoincrement())
+  number     Int
+  letter     String
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  subject    Subject[]
+  students   Students[]
+  Teachers   Teachers?  @relation(fields: [teachersId], references: [id])
+  teachersId Int?
+  School     School?    @relation(fields: [schoolId], references: [id])
+  schoolId   Int?
+}
+
+model Contract {
+  id         Int            @id @unique @default(autoincrement())
+  start_date String
+  end_date   String
+  amount     String
+  status     ContractStatus
+  payment    Payment[]
+  Students   Students?      @relation(fields: [studentsId], references: [id])
+  studentsId Int?
+}
+
+model Payment {
+  id         Int           @id @unique @default(autoincrement())
+  amount     String
+  status     PaymentStatus
+  payment_method PaymentMethod
+  payed_date DateTime      @default(now())
+  Contract   Contract?     @relation(fields: [contractId], references: [id])
+  contractId Int?
+}
+
+enum PaymentMethod{
+  cash
+  card
+  transfer
+}
+
+enum ContractStatus {
+  active
+  pending
+  cancelled
+  expired
+}
+
+enum PaymentStatus {
+  paid
+  pending
+  failed
+  refunded
 }

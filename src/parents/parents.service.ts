@@ -7,22 +7,20 @@ import * as bcrypt from "bcrypt";
 @Injectable()
 export class ParentsService {
   constructor(private readonly prisma: PrismaService) {}
-create(){
-  return `df`
-}
+
   findAll() {
-    return `This action returns all parents`;
+    return this.prisma.parents.findMany({});
   }
 
   findOne(id: number) {
-    return `This action returns a #${id} parent`;
+    return this.prisma.parents.findUnique({where:{id}});
   }
 
   update(id: number, updateParentDto: UpdateParentDto) {
-    return `This action updates a #${id} parent`;
+    return this.prisma.parents.update({where:{id},data:updateParentDto});
   }
 
   remove(id: number) {
-    return `This action removes a #${id} parent`;
+    return this.prisma.parents.delete({where:{id}});
   }
 }
