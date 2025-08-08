@@ -1,4 +1,4 @@
-import { AttendStatus } from "generated/prisma";
+import { AttendStatus } from "@prisma/client";
 import { ApiProperty } from "@nestjs/swagger";
 import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString } from "class-validator";
 
@@ -18,3 +18,4 @@ export class CreateStudentAttenddanceDto {
   @IsNotEmpty()
   status: AttendStatus;
 }
+

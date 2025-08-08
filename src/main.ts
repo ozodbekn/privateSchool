@@ -10,8 +10,9 @@ import {
 } from "nest-winston";
 import { winstonConfig } from "./common/logging/winston.logging";
 import { AllExceptionsFilter } from "./common/errors/error.handling";
-import { ValidationPipe } from "@nestjs/common";
+import { BadRequestException, ValidationPipe } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { ValidationError } from "class-validator";
 
 async function start() {
   const app = await NestFactory.create(AppModule, {
@@ -20,10 +21,21 @@ async function start() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: true,
       transform: true,
+      exceptionFactory: (errors: ValidationError[]) => {
+        const messages = errors.map((err) => {
+          if (err.constraints) {
+            return `${err.property} => ${Object.values(err.constraints).join(", ")}`;
+          } else {
+            return `${err.property} => validation error`;
+          }
+        });
+        return new BadRequestException(messages);
+      },
     })
   );
+
+
   const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
   app.useGlobalFilters(new AllExceptionsFilter(logger));
 

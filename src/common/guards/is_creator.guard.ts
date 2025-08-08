@@ -51,7 +51,7 @@ export class CreatorGuard implements CanActivate {
       throw new ForbiddenException("Creator faol emas");
     }
 
-    if(decodedToken.role !== "creator") {
+    if(decodedToken.is_creator !== true) {
       throw new ForbiddenException("Creator rolida emassiz");
     }
 

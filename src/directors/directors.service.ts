@@ -10,7 +10,6 @@ import { UpdateDirectorDto } from "./dto/update-director.dto";
 import { PrismaService } from "../prisma/prisma.service";
 import * as bcrypt from "bcrypt";
 
-
 @Injectable()
 export class DirectorsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -18,12 +17,21 @@ export class DirectorsService {
     const { full_name, ID, password, phone_number, confirm_password, image } =
       createDirectorDto;
     const exist = await this.prisma.idList.findFirst({ where: { ID } });
+
     if (exist) {
       throw new ConflictException("Bunday id lik foydalanuvchi bor!");
     }
 
+    console.log(password);
+    console.log(confirm_password);
     if (password !== confirm_password) {
       throw new BadRequestException("Parollar mos emas");
+    }
+
+    if (!password || !confirm_password) {
+      throw new BadRequestException(
+        "Parol yoki tasdiqlovchi parol kiritilmagan"
+      );
     }
 
     const hashedPassword = await bcrypt.hash(password, 7);
@@ -41,13 +49,14 @@ export class DirectorsService {
     await this.prisma.idList.create({
       data: { ID: ID },
     });
-    
 
     return newDerictor;
   }
 
   findAll() {
-    const director = this.prisma.directors.findMany({select:{School:true}});
+    const director = this.prisma.directors.findMany({
+      select: { School: true },
+    });
     if (!director) {
       throw new NotFoundException("Director not found");
     }
@@ -55,7 +64,10 @@ export class DirectorsService {
   }
 
   findOne(id: number) {
-    const director = this.prisma.directors.findUnique({where:{id},select:{School:true}});
+    const director = this.prisma.directors.findUnique({
+      where: { id },
+      select: { School: true },
+    });
     if (!director) {
       throw new NotFoundException("Director not found");
     }
@@ -63,19 +75,22 @@ export class DirectorsService {
   }
 
   update(id: number, updateDirectorDto: UpdateDirectorDto) {
-    const director = this.prisma.directors.findUnique({where:{id}});
+    const director = this.prisma.directors.findUnique({ where: { id } });
     if (!director) {
       throw new NotFoundException("Director not found");
     }
-    return this.prisma.directors.update({where:{id},data:updateDirectorDto});
+    return this.prisma.directors.update({
+      where: { id },
+      data: updateDirectorDto,
+    });
   }
 
   async remove(id: number) {
-    const director = await this.prisma.directors.findUnique({where:{id}});
+    const director = await this.prisma.directors.findUnique({ where: { id } });
     if (!director) {
       throw new NotFoundException("Director not found");
     }
-    await this.prisma.idList.delete({where:{ID:director.ID}});
-    return this.prisma.directors.delete({where:{id}});
+    await this.prisma.idList.delete({ where: { ID: director.ID } });
+    return this.prisma.directors.delete({ where: { id } });
   }
 }

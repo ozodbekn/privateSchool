@@ -1,7 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body } from '@nestjs/common';
 import { SmartQueryService } from './smart-query.service';
-import { CreateSmartQueryDto } from './dto/create-smart-query.dto';
-import { UpdateSmartQueryDto } from './dto/update-smart-query.dto';
 
 @Controller('smart-query')
 export class SmartQueryController {
@@ -14,7 +12,7 @@ export class SmartQueryController {
 
   @Get("NoexistStudentsListByAttendanceWithout")
   NoexistStudentsListByAttendanceWithout() {
-    return this.smartQueryService.NoexistStudentsListByAttendanceWithout();
+    return this.smartQueryService.NoexistStudentsListByAttendanceWithoutReason();
   }
 
   @Get("NoexistStudentsListByAttendanceDueToReason")
@@ -36,7 +34,6 @@ export class SmartQueryController {
   findExpiredHomeWorks() {
     return this.smartQueryService.findExpiredHomeWorks();
   }
-
 
 
 }

@@ -22,18 +22,34 @@ export class TeachersService {
 
     const hashedPassword = await bcrypt.hash(password, 7);
 
+    const teacherPhoneExist = await this.prisma.teachers.findFirst({
+      where: { phone_number },
+    });
+    if (teacherPhoneExist) {
+      throw new ConflictException("Bu telefon raqamli foydalanuvchi bor!");
+    }
+    const teacherIDExist = await this.prisma.teachers.findFirst({
+      where: { ID },
+    });
+    if (teacherIDExist) {
+      throw new ConflictException("Bu ID raqamli foydalanuvchi bor!");
+    }
+
     const newTeacher = await this.prisma.teachers.create({
       data: {
         full_name,
         ID,
         phone_number,
         diplom,
-        hashedPassword,
+        hashedPassword
       },
     });
-        await this.prisma.idList.create({
-          data: { ID: ID },
-        });
+    if(!newTeacher){
+      throw new NotFoundException("Teacher not found");
+    }
+    await this.prisma.idList.create({
+      data: { ID: ID },
+    });
 
     return newTeacher;
   }

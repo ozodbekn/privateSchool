@@ -275,9 +275,10 @@ export class AuthService {
 
   async loginDerictor(loginDerictorDto: LoginDirectorDto, res: Response) {
     const { ID, password } = loginDerictorDto;
-    const derictor = await this.prisma.directors.findUnique({
+    const derictor = await this.prisma.directors.findFirst({
       where: { ID },
     });
+    console.log(derictor);
 
     if (!derictor) {
       throw new UnauthorizedException("Login yoki parol noto'g'ri");
@@ -286,7 +287,7 @@ export class AuthService {
     const isMatched = await bcrypt.compare(password, derictor.hashedPassword);
 
     if (!isMatched) {
-      throw new UnauthorizedException("Login yoki parol noto'g'ri");
+      throw new UnauthorizedException("Login yoki parol noto'g'ri.");
     }
 
     const { accessToken, refreshToken } =
@@ -489,7 +490,7 @@ export class AuthService {
       },
     });
 
-    res.cookie("refeshToken", refreshToken, {
+    res.cookie("refreshToken", refreshToken, {
       maxAge: Number(process.env.COOKIE_TIME),
       httpOnly: true,
     });
@@ -530,7 +531,7 @@ export class AuthService {
       },
     });
 
-    res.cookie("refeshToken", refreshToken, {
+    res.cookie("refreshToken", refreshToken, {
       maxAge: Number(process.env.COOKIE_TIME),
       httpOnly: true,
     });
@@ -693,7 +694,7 @@ export class AuthService {
     if (!studentData) {
       throw new ForbiddenException("User not verified");
     }
-    await this.prisma.teachers.update({
+    await this.prisma.students.update({
       where: { id: studentData["id"] },
       data: {
         hashedRefreshToken: "",

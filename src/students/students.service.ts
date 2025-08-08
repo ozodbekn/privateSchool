@@ -28,6 +28,13 @@ export class StudentsService {
       throw new NotFoundException("Classes not found");
     }
 
+    const studentIDExist = await this.prisma.students.findFirst({
+      where: { ID },
+    });
+    if (studentIDExist) {
+      throw new ConflictException("Bu ID raqamli foydalanuvchi bor!");
+    }
+
     const hashedPassword = await bcrypt.hash(password, 7);
 
     const newStudent = await this.prisma.students.create({
@@ -40,9 +47,9 @@ export class StudentsService {
         classesId,
       },
     });
-        await this.prisma.idList.create({
-          data: { ID: ID },
-        });
+    await this.prisma.idList.create({
+      data: { ID: ID },
+    });
 
     return newStudent;
   }

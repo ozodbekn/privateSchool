@@ -52,8 +52,10 @@ export class SmartQueryService {
         },
       });
     });
+    return students;
   }
-  async NoexistStudentsListByAttendanceWithout() {
+
+  async NoexistStudentsListByAttendanceWithoutReason() {
     const students = await this.prisma.students.findMany({})
     students.forEach((student) => {
       this.prisma.studentAttenddance.findFirst({
@@ -63,6 +65,7 @@ export class SmartQueryService {
         },
       });
     });
+    return students;
   }
   async NoexistStudentsListByAttendanceDueToReason() {
     const students = await this.prisma.students.findMany({})
@@ -74,6 +77,7 @@ export class SmartQueryService {
         },
       });
     });
+    return students;
   }
 
 
